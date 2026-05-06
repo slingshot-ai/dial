@@ -6,61 +6,50 @@ Reference implementation of the paper:
 > Ziyi Zhu, Olivier Tieleman, Caitlin A. Stamatis, Luka Smyth, Thomas D. Hull, Daniel R. Cahn, Matteo Malgaroli.
 > arXiv preprint [arXiv:2512.20773](https://arxiv.org/abs/2512.20773), 2025.
 
-DIAL is a DPO-based adversarial training framework that iteratively improves a multi-turn user simulator by playing it against a learned discriminator. Each iteration:
+<p align="center">
+  <img src="images/adversarial_training.jpg" alt="DIAL adversarial training framework" width="820"/>
+</p>
 
-1. **Simulate** — the current user simulator (US) interacts with a response generator (RG) to produce dialogues.
-2. **Discriminate** — a token-classification discriminator is trained to distinguish *real* (human) from *simulated* user turns.
-3. **Score** — the discriminator's log-odds-delta is used as a per-turn reward.
-4. **Regenerate & rank** — the lowest-reward US turns are regenerated multiple times and ranked, producing `(chosen, rejected)` preference pairs.
-5. **DPO** — the US is fine-tuned on those pairs and becomes the next iteration.
+---
+
+## 🎯 Overview
+
+DIAL (Direct Iterative Adversarial Learning) is a DPO-based adversarial training framework that produces realistic multi-turn user simulators by playing the simulator against a learned discriminator. Instead of optimising a fixed reward, DIAL alternates between scoring simulated user turns with a freshly trained discriminator and using those scores to construct **(chosen, rejected)** preference pairs for direct preference optimisation. Each round closes the gap between simulated and human dialogue distributions while keeping training stable and label-free.
 
 This repository contains the public reproduction on **MultiWOZ 2.1** as a task-oriented benchmark, mirroring the procedure used in the paper for mental-health dialogue simulation.
 
-## Citation
+## Latest News
 
-```bibtex
-@article{zhu2025dial,
-  title  = {DIAL: Direct Iterative Adversarial Learning for Realistic Multi-Turn Dialogue Simulation},
-  author = {Zhu, Ziyi and Tieleman, Olivier and Stamatis, Caitlin A. and Smyth, Luka and Hull, Thomas D. and Cahn, Daniel R. and Malgaroli, Matteo},
-  journal = {arXiv preprint arXiv:2512.20773},
-  year   = {2025}
-}
-```
+- **2025 Dec**: DIAL paper released on arXiv ([2512.20773](https://arxiv.org/abs/2512.20773)) and code published.
 
-## Repository structure
+### Key Features
 
-```
-.
-├── ConvLab-3/                        # ConvLab-3 source tree (see Setup)
-├── generate_sft_datasets.py          # Build US + RG SFT datasets from MultiWOZ 2.1
-├── launch_sft_us.py                  # Launch SFT for the user simulator on Together AI
-├── launch_sft_rg.py                  # Launch SFT for the response generator on Together AI
-├── generate_discriminator_data.py    # Pair real and simulated dialogues for the discriminator
-├── train_discriminator.py            # Train the token-classification discriminator (LoRA)
-├── generate_preference_dataset.py    # Score, regenerate, and form (chosen, rejected) pairs
-├── launch_dpo_us.py                  # Launch DPO fine-tuning of the US on Together AI
-├── run_baselines.py                  # Evaluate baseline US/system combinations on the test set
-├── run_custom_models.py              # Evaluate DIAL-trained US (+ RG) on the test set
-├── compute_diversity.py              # Lexical diversity, distinct-n, entropy, MAUVE
-└── remove_empty_cache.py             # Clean failed/empty cache entries between runs
-```
+- 🎭 **Two-Phase Pipeline**: Phase 1 (SFT) trains a base user simulator and response generator on anonymised dialogues; Phase 2 (DIAL) iteratively refines the simulator via adversarial preference learning.
+- 🥊 **Learned Per-Turn Reward**: A token-classification discriminator on Llama-3.1-8B distinguishes real vs. simulated user turns and supplies a log-odds-delta reward at every utterance — no human labels required.
+- 🔁 **Iterative DPO**: The lowest-reward turns are regenerated, re-scored, and turned into preference pairs that drive the next DPO round, producing successively more human-like simulators.
+- 📊 **Faithful Evaluation Suite**: Plug-and-play comparison against rule-based, TUS, and GenTUS baselines, plus diversity metrics (TTR, Distinct-n, entropy) and **MAUVE** against the human MultiWOZ distribution.
+- 💾 **Cache-Friendly**: Every long-running step writes per-dialogue artifacts under `cache/`, so reruns reuse prior simulations and only recompute what changed.
 
-## Setup
+### How It Works
 
-### 1. Clone with ConvLab-3
+1. **Simulate** — the current user simulator (US) interacts with a response generator (RG) to produce dialogues.
+2. **Discriminate** — a token-classification discriminator is trained to distinguish *real* (human) from *simulated* user turns at each end-of-turn token.
+3. **Score** — the discriminator's log-odds-delta is used as a per-turn reward.
+4. **Regenerate & rank** — the lowest-reward US turns are regenerated multiple times and ranked, producing `(chosen, rejected)` preference pairs.
+5. **DPO** — the US is fine-tuned on those pairs and becomes the next iteration; loop back to step 1.
 
-The pipeline depends on [ConvLab-3](https://github.com/ConvLab/ConvLab-3) for MultiWOZ 2.1 loading, the `LLM_US` / `LLM_RG` agent wrappers, baseline simulators (rule, TUS, GenTUS), and the MultiWOZ evaluator.
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
+# Clone DIAL alongside ConvLab-3 (used for MultiWOZ 2.1, baseline simulators, and the evaluator)
 git clone <this-repo> dial
 cd dial
 git clone https://github.com/ConvLab/ConvLab-3.git
 pip install -e ConvLab-3
-```
 
-### 2. Python dependencies
-
-```bash
+# Python dependencies
 pip install \
     torch transformers datasets peft \
     bitsandbytes accelerate \
@@ -69,11 +58,11 @@ pip install \
     mauve-text
 ```
 
-A modern GPU (≥ 24 GB VRAM, A100/H100 recommended) is required to train the 8B discriminator with 4-bit quantization and LoRA.
+A modern GPU (≥ 24 GB VRAM, A100/H100 recommended) is required to train the 8B discriminator with 4-bit quantization and LoRA. SFT and DPO of the 70B simulator are launched on Together AI.
 
-### 3. API keys
+### API keys
 
-The pipeline uses Together AI for SFT/DPO fine-tuning of 70B models, OpenRouter or Together for inference, and OpenAI for MAUVE embeddings.
+The pipeline uses Together AI for SFT/DPO fine-tuning, OpenRouter or Together for inference, and OpenAI for MAUVE embeddings.
 
 ```bash
 export TOGETHER_API_KEY=...
@@ -83,7 +72,7 @@ export WANDB_API_KEY=...             # optional, enables W&B logging
 export HF_TOKEN=...                  # to push generated datasets to the Hub
 ```
 
-## End-to-end pipeline
+## 🔁 End-to-end Pipeline
 
 DIAL alternates between (a) generating data with the current US/RG and (b) training the next US. Repeat steps 3–6 for each DIAL iteration (`it1`, `it2`, …); model and dataset names in the scripts include the iteration index.
 
@@ -159,19 +148,32 @@ python launch_dpo_us.py \
 
 The newly produced model becomes the US for iteration N+1; loop back to Step 3.
 
-## Evaluation
+<details>
+<summary>Click here to see common DPO arguments</summary>
+
+| Argument                   | Description                                                                                  | Default |
+| :------------------------- | :------------------------------------------------------------------------------------------- | :------ |
+| `--filter-chosen-rejected` | Drop pairs where chosen and rejected are textually identical                                 | False   |
+| `--top-margin-frac`        | Keep only the top-fraction of pairs by reward margin                                         | 1.0     |
+| `--dpo-beta`               | DPO temperature β controlling KL divergence from the reference model                         | 1.0     |
+| `--learning-rate`          | Peak learning rate for DPO                                                                   | 1e-6    |
+| `--n-epochs`               | Number of DPO epochs over the preference dataset                                             | 1       |
+
+</details>
+
+## 📊 Evaluation
 
 ### Baselines
 
 `run_baselines.py` evaluates standard US/system combinations on the MultiWOZ 2.1 test set:
 
-| Combo               | User simulator | System            |
-| :------------------ | :------------- | :---------------- |
-| `rule_us_rule_sys`  | Rule           | Rule              |
-| `tus_rule_sys`      | TUS            | Rule              |
-| `gentus_rule_sys`   | GenTUS         | Rule              |
-| `llm_us_llm_rg`     | LLM US         | LLM RG            |
-| `llm_us_rule_sys`   | LLM US         | Rule pipeline NLU + Policy + NLG |
+| Combo               | User simulator | System                            |
+| :------------------ | :------------- | :-------------------------------- |
+| `rule_us_rule_sys`  | Rule           | Rule                              |
+| `tus_rule_sys`      | TUS            | Rule                              |
+| `gentus_rule_sys`   | GenTUS         | Rule                              |
+| `llm_us_llm_rg`     | LLM US         | LLM RG                            |
+| `llm_us_rule_sys`   | LLM US         | Rule pipeline NLU + Policy + NLG  |
 
 ```bash
 python run_baselines.py
@@ -207,21 +209,78 @@ python remove_empty_cache.py --dry-run    # preview
 python remove_empty_cache.py              # delete
 ```
 
-## Caching
+## 🗂 Repository Structure
+
+```
+.
+├── ConvLab-3/                        # ConvLab-3 source tree (see Setup)
+├── images/adversarial_training.jpg   # Framework diagram (above)
+├── generate_sft_datasets.py          # Build US + RG SFT datasets from MultiWOZ 2.1
+├── launch_sft_us.py                  # Launch SFT for the user simulator on Together AI
+├── launch_sft_rg.py                  # Launch SFT for the response generator on Together AI
+├── generate_discriminator_data.py    # Pair real and simulated dialogues for the discriminator
+├── train_discriminator.py            # Train the token-classification discriminator (LoRA)
+├── generate_preference_dataset.py    # Score, regenerate, and form (chosen, rejected) pairs
+├── launch_dpo_us.py                  # Launch DPO fine-tuning of the US on Together AI
+├── run_baselines.py                  # Evaluate baseline US/system combinations on the test set
+├── run_custom_models.py              # Evaluate DIAL-trained US (+ RG) on the test set
+├── compute_diversity.py              # Lexical diversity, distinct-n, entropy, MAUVE
+└── remove_empty_cache.py             # Clean failed/empty cache entries between runs
+```
+
+## 💾 Caching
 
 Every long-running step caches per-dialogue artifacts under `cache/`:
 
-| Path                       | Producer                          | Contents                                  |
-| :------------------------- | :-------------------------------- | :---------------------------------------- |
+| Path                       | Producer                                   | Contents                                  |
+| :------------------------- | :----------------------------------------- | :---------------------------------------- |
 | `cache/baselines/<combo>/` | `run_baselines.py`, `run_custom_models.py` | Conversation + evaluator stats per dialog |
-| `cache/discriminator/.../` | `generate_discriminator_data.py`  | Simulated US × RG conversations           |
-| `cache/preference/.../`    | `generate_preference_dataset.py`  | Preference samples per dialogue           |
-| `.mauve_cache/`            | `compute_diversity.py`            | Cached MAUVE results per combo            |
+| `cache/discriminator/.../` | `generate_discriminator_data.py`           | Simulated US × RG conversations           |
+| `cache/preference/.../`    | `generate_preference_dataset.py`           | Preference samples per dialogue           |
+| `.mauve_cache/`            | `compute_diversity.py`                     | Cached MAUVE results per combo            |
 
 Re-running a script reuses cached results; delete the relevant subdirectory to force regeneration.
 
-## Notes
+## 📝 Notes
 
 - All scripts default to model and dataset IDs under the `slingshot/` Hugging Face namespace. Update them (or override via the constants at the top of each file) when reproducing in your own workspace.
 - `LLM_US` requires the model to emit a literal `[END]` token to terminate the dialogue. The data builders enforce this for ground-truth dialogues so that the SFT distribution matches inference.
 - The paper's primary application is mental-health dialogue simulation; the code in this repository targets MultiWOZ 2.1 as a public, reproducible benchmark of the same DIAL procedure.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 🙏 Acknowledgments
+
+This work builds on [ConvLab-3](https://github.com/ConvLab/ConvLab-3) for MultiWOZ 2.1 loading, baseline user simulators (rule, TUS, GenTUS), the `LLM_US`/`LLM_RG` agent wrappers, and the MultiWOZ evaluator. SFT and DPO training are run on [Together AI](https://together.ai/), and MAUVE evaluation uses OpenAI embeddings via the [`mauve-text`](https://github.com/krishnap25/mauve) package.
+
+## 📧 Contact
+
+For questions and feedback:
+
+- **Paper authors**: see the [arXiv paper](https://arxiv.org/abs/2512.20773) for author contact information.
+- **Issues**: please open an issue on GitHub.
+
+---
+
+## 📝 Citation
+
+If DIAL is useful in your research, please cite:
+
+```bibtex
+@article{zhu2025dial,
+  title  = {DIAL: Direct Iterative Adversarial Learning for Realistic Multi-Turn Dialogue Simulation},
+  author = {Zhu, Ziyi and Tieleman, Olivier and Stamatis, Caitlin A. and Smyth, Luka and Hull, Thomas D. and Cahn, Daniel R. and Malgaroli, Matteo},
+  journal = {arXiv preprint arXiv:2512.20773},
+  year   = {2025}
+}
+```
+
+**⭐ Star us on GitHub if DIAL helps your research!**

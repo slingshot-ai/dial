@@ -37,13 +37,7 @@ from convlab.base_models.llm.user_simulator import LLM_RG, LLM_US
 from convlab.util.unified_datasets_util import load_dataset as load_convlab_dataset
 from datasets import Dataset
 
-# LLM_US_MODEL = "openrouter/meta-llama/llama-3.1-70b-instruct"
-# LLM_US_MODEL = "together_ai/slingshot/Meta-Llama-3.1-70B-Instruct-Reference-multiwoz-us-sft-4dcc3672"
-# LLM_US_MODEL = "together_ai/slingshot/Meta-Llama-3.1-70B-Instruct-Reference-multiwoz-us-dial-it1-a8c57d7f-6bb2624d"
-# LLM_US_MODEL = "together_ai/slingshot/Meta-Llama-3.1-70B-Instruct-Reference-multiwoz-us-dial-it2-7d06c9f1-6710a3db"
-# LLM_US_MODEL = "together_ai/slingshot/Meta-Llama-3.1-70B-Instruct-Reference-multiwoz-us-dial-it3-04142b70-90b36413"
 LLM_US_MODEL = "together_ai/slingshot/Meta-Llama-3.1-70B-Instruct-Reference-multiwoz-us-dial-it4-625c294c"
-# LLM_RG_MODEL = "openrouter/meta-llama/llama-3.1-70b-instruct"
 LLM_RG_MODEL = "together_ai/slingshot/Meta-Llama-3.1-70B-Instruct-Reference-multiwoz-rg-sft-5c55bb5c"
 N_DIALOGUES = 1000
 INITIAL_SYSTEM_GREETING = "Hello, how may I help you today?"
