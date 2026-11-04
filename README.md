@@ -7,7 +7,7 @@ Code for the Findings of EMNLP 2026 paper:
 > **DIAL: Direct Iterative Adversarial Learning for Realistic Multi-Turn Dialogue Simulation**
 > Ziyi Zhu, Olivier Tieleman, Caitlin A. Stamatis, Luka Smyth, Thomas D. Hull, Daniel Reid Cahn, Jinghong Chen, Matteo Malgaroli
 > *Findings of the Association for Computational Linguistics: EMNLP 2026*, pages 925–942.
-> [[Paper]](https://aclanthology.org/2026.findings-emnlp.46/) [[PDF]](https://aclanthology.org/2026.findings-emnlp.46.pdf)
+> [[Paper]](https://aclanthology.org/2026.findings-emnlp.46/) [[PDF]](https://aclanthology.org/2026.findings-emnlp.46.pdf) [[DOI]](https://doi.org/10.18653/2026.findings-emnlp.46)
 
 <p align="center">
   <img src="images/adversarial_training.jpg" alt="DIAL adversarial training framework" width="820"/>
@@ -144,8 +144,9 @@ remove_empty_cache.py            cleanup of failed cache entries
     address = "Budapest, Hungary",
     publisher = "Association for Computational Linguistics",
     url = "https://aclanthology.org/2026.findings-emnlp.46/",
+    doi = "10.18653/2026.findings-emnlp.46",
     pages = "925--942",
-    ISBN = "979-8-89176-462-0",
+    ISBN = "979-8-89176-462-0"
 }
 ```
 
